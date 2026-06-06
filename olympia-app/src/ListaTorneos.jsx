@@ -9,11 +9,11 @@ const ListaTorneos = () => {
     const [pins, setPins] = useState({}); // Mapa de idTorneo -> PIN (punto 3)
     const [copiadoId, setCopiadoId] = useState(null); // Feedback visual de PIN copiado
 
-    // Cargar los PINs almacenados localmente para cada torneo
+    // Cargar los PINs de los torneos (del backend o localStorage)
     const cargarPins = (listaTorneos) => {
         const pMap = {};
         listaTorneos.forEach(t => {
-            const p = localStorage.getItem(`olympia_pin_${t.id_torneo}`);
+            const p = t.pin_asistente || localStorage.getItem(`olympia_pin_${t.id_torneo}`);
             if (p) pMap[t.id_torneo] = p;
         });
         setPins(pMap);
@@ -22,7 +22,7 @@ const ListaTorneos = () => {
     const cargarTorneos = async () => {
         try {
             setCargando(true);
-            const resp = await fetch("http://localhost/olympia-backend/obtener_torneos.php");
+            const resp = await fetch("http://localhost/olympia-backend/torneos/obtener_torneos.php");
             const data = await resp.json();
             if (Array.isArray(data)) {
                 // Filtramos los eliminados si manejamos baja lógica en localStorage o localmente
@@ -43,15 +43,26 @@ const ListaTorneos = () => {
     }, []);
 
     // Generar un PIN único de 6 caracteres alfanuméricos desde la lista (punto 3)
-    const handleGenerarPinLista = (idTorneo) => {
-        const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let pin = '';
-        for (let i = 0; i < 6; i++) {
-            pin += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+    const handleGenerarPinLista = async (idTorneo) => {
+        try {
+            const resp = await fetch("http://localhost/olympia-backend/torneos/generar_pin_asistente.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id_torneo: idTorneo })
+            });
+            const data = await resp.json();
+
+            if (data.status === 'success') {
+                const pin = data.pin;
+                localStorage.setItem(`olympia_pin_${idTorneo}`, pin);
+                setPins(prev => ({ ...prev, [idTorneo]: pin }));
+                alert(`¡Código PIN generado con éxito: ${pin}!`);
+            } else {
+                alert(data.mensaje || "Error al generar PIN.");
+            }
+        } catch (error) {
+            alert("Error de conexión al generar PIN.");
         }
-        localStorage.setItem(`olympia_pin_${idTorneo}`, pin);
-        setPins(prev => ({ ...prev, [idTorneo]: pin }));
-        alert(`¡Código PIN generado con éxito: ${pin}!`);
     };
 
     // Copiar el PIN al portapapeles con feedback visual
@@ -64,7 +75,7 @@ const ListaTorneos = () => {
     const handleEliminarTorneo = async (idTorneo, nombreTorneo) => {
         try {
             // Verificar si tiene partidos registrados (HU-1.3)
-            const respFixture = await fetch(`http://localhost/olympia-backend/obtener_fixture.php?id_torneo=${idTorneo}`);
+            const respFixture = await fetch(`http://localhost/olympia-backend/fixture/obtener_fixture.php?id_torneo=${idTorneo}`);
             const dataFixture = await respFixture.json();
             
             if (dataFixture && dataFixture.partidos && dataFixture.partidos.length > 0) {
@@ -82,7 +93,7 @@ const ListaTorneos = () => {
                 
                 // Actualizar lista en pantalla
                 setTorneos(prev => prev.filter(t => t.id_torneo !== idTorneo));
-                alert(`¡Torneo "${nombreTorneo}" eliminado con éxito (baja lógica)!`);
+                alert(`¡Torneo "${nombreTorneo}" eliminado con éxito!`);
             }
         } catch (error) {
             alert("Error al verificar los datos del torneo.");
@@ -197,7 +208,7 @@ const ListaTorneos = () => {
                                                     to={`/admin/gestor-equipos/${t.id_torneo}/${encodeURIComponent(t.nombre_torneo)}`}
                                                     className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-750 text-blue-400 hover:text-blue-300 rounded-lg text-xs font-bold transition-colors"
                                                 >
-                                                    Control Panel
+                                                    Panel de control
                                                 </Link>
                                                 
                                                 <button

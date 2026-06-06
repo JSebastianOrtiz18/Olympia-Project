@@ -23,7 +23,7 @@ const FormJugador = () => {
         e.preventDefault();
 
         try {
-            const response = await fetch("http://localhost/olympia-backend/guardar_jugador.php", {
+            const response = await fetch("http://localhost/olympia-backend/jugadores/guardar_jugador.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),

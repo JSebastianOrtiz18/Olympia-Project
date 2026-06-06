@@ -19,7 +19,7 @@ const DashboardUsuarios = () => {
         
         // 1. Intentar cargar de backend
         try {
-            const resp = await fetch("http://localhost/olympia-backend/obtener_usuario.php");
+            const resp = await fetch("http://localhost/olympia-backend/usuarios/obtener_usuario.php");
             const data = await resp.json();
             if (Array.isArray(data)) {
                 listaUsuarios = data;
@@ -70,7 +70,7 @@ const DashboardUsuarios = () => {
         setSuccess(`Rol actualizado con éxito para el usuario DNI: ${dni}`);
 
         // Intentar actualizar también en el backend
-        fetch("http://localhost/olympia-backend/guardar_colaborador.php", {
+        fetch("http://localhost/olympia-backend/usuarios/guardar_colaborador.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

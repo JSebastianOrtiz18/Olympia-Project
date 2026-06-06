@@ -31,7 +31,7 @@ const GestorEquipos = () => {
     const cargarDatos = async () => {
         try {
             setCargando(true);
-            const respEquipos = await fetch(`http://localhost/olympia-backend/obtener_equipos_torneo.php?id_torneo=${idTorneo}`);
+            const respEquipos = await fetch(`http://localhost/olympia-backend/equipos/obtener_equipos_torneo.php?id_torneo=${idTorneo}`);
             const dataEquipos = await respEquipos.json();
 
             if (dataEquipos.status !== 'error') {
@@ -44,7 +44,8 @@ const GestorEquipos = () => {
             }
             
             // Cargar PIN
-            const storedPin = localStorage.getItem(`olympia_pin_${idTorneo}`);
+            const pinDb = dataEquipos.pin_asistente;
+            const storedPin = pinDb || localStorage.getItem(`olympia_pin_${idTorneo}`);
             if (storedPin) {
                 setPinAsistente(storedPin);
             }
@@ -59,7 +60,7 @@ const GestorEquipos = () => {
 
     const cargarFixture = async () => {
         try {
-            const resp = await fetch(`http://localhost/olympia-backend/obtener_fixture.php?id_torneo=${idTorneo}`);
+            const resp = await fetch(`http://localhost/olympia-backend/fixture/obtener_fixture.php?id_torneo=${idTorneo}`);
             const data = await resp.json();
             if (data.partidos) {
                 // Para que el demo funcione con modificaciones locales, cargamos lo guardado localmente si existe
@@ -102,7 +103,7 @@ const GestorEquipos = () => {
     const guardarCambiosBD = async () => {
         const idsFinales = equiposAsignados.map(e => e.id_equipo);
         try {
-            const resp = await fetch("http://localhost/olympia-backend/guardar_asignaciones_batch.php", {
+            const resp = await fetch("http://localhost/olympia-backend/equipos/guardar_asignaciones_batch.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id_torneo: idTorneo, equipos: idsFinales })
@@ -121,17 +122,26 @@ const GestorEquipos = () => {
     };
 
     // Generar PIN único (HU-6.2)
-    const handleGenerarPin = () => {
-        // Generar PIN alfanumérico aleatorio
-        const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let pin = '';
-        for (let i = 0; i < 6; i++) {
-            pin += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+    const handleGenerarPin = async () => {
+        try {
+            const resp = await fetch("http://localhost/olympia-backend/torneos/generar_pin_asistente.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id_torneo: idTorneo })
+            });
+            const data = await resp.json();
+
+            if (data.status === 'success') {
+                const pin = data.pin;
+                localStorage.setItem(`olympia_pin_${idTorneo}`, pin);
+                setPinAsistente(pin);
+                alert(`¡Código PIN generado para asistentes: ${pin}!`);
+            } else {
+                alert(data.mensaje || "Error al generar PIN en el servidor.");
+            }
+        } catch (error) {
+            alert("Error de conexión al generar PIN.");
         }
-        
-        localStorage.setItem(`olympia_pin_${idTorneo}`, pin);
-        setPinAsistente(pin);
-        alert(`¡Código PIN generado para asistentes: ${pin}!`);
     };
 
     // Copiar PIN al portapapeles
@@ -189,7 +199,7 @@ const GestorEquipos = () => {
         if (window.confirm(mensajeConfirmacion)) {
             setGenerandoFixture(true);
             try {
-                const resp = await fetch("http://localhost/olympia-backend/generar_fixture.php", {
+                const resp = await fetch("http://localhost/olympia-backend/fixture/generar_fixture.php", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ id_torneo: idTorneo })
@@ -500,7 +510,6 @@ const GestorEquipos = () => {
                         <span className="bg-blue-500/10 text-blue-400 text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-blue-500/20">
                             Formato: {formatoTorneo}
                         </span>
-                        <span className="text-xs text-slate-500">ID: {idTorneo}</span>
                     </div>
                 </div>
 
@@ -664,7 +673,7 @@ const GestorEquipos = () => {
                                             disabled={generandoFixture || originalAsignados.length < 2}
                                             className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs shadow-lg shadow-blue-600/20 disabled:opacity-45 transition-colors"
                                         >
-                                            Generar Fixture ({formatoTorneo})
+                                            Generar Fixture
                                         </button>
                                     </div>
                                 ) : (

@@ -17,53 +17,41 @@ const CargaResultadosAsistente = () => {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        // Cargar torneo
-        const storedTorneos = localStorage.getItem('olympia_torneos_local');
-        if (storedTorneos) {
-            const list = JSON.parse(storedTorneos);
-            const found = list.find(t => t.id_torneo === idTorneo);
-            if (found) {
-                setTorneo(found);
-            }
-        }
-
-        // Cargar fixture/partidos
-        const cargarFixture = async () => {
-            let fixturePartidos = [];
+        const cargarTorneoYFixture = async () => {
+            setCargando(true);
             
-            // 1. Intentar de localStorage
-            const localPartidos = localStorage.getItem(`olympia_partidos_${idTorneo}`);
-            if (localPartidos) {
-                fixturePartidos = JSON.parse(localPartidos);
-            } else {
-                // 2. Intentar de backend
-                try {
-                    const resp = await fetch(`http://localhost/olympia-backend/obtener_fixture.php?id_torneo=${idTorneo}`);
-                    const data = await resp.json();
-                    if (data && data.partidos) {
-                        fixturePartidos = data.partidos;
-                        localStorage.setItem(`olympia_partidos_${idTorneo}`, JSON.stringify(fixturePartidos));
+            // 1. Cargar datos del torneo desde el backend para obtener su nombre real
+            try {
+                const respTorneos = await fetch("http://localhost/olympia-backend/torneos/obtener_torneos.php");
+                const dataTorneos = await respTorneos.json();
+                if (Array.isArray(dataTorneos)) {
+                    const found = dataTorneos.find(t => t.id_torneo.toString() === idTorneo.toString());
+                    if (found) {
+                        setTorneo(found);
                     }
-                } catch (error) {
-                    console.log("Backend offline o fixture no generado.");
                 }
+            } catch (error) {
+                console.error("Error al cargar torneos:", error);
             }
 
-            // Si aún no hay partidos y estamos en modo demo, podemos generar unos de prueba
-            if (fixturePartidos.length === 0) {
-                fixturePartidos = [
-                    { id_partido: 'partido_1', local: 'Dream Team FC', visitante: 'Fénix Club', marcador_local: '', marcador_visitante: '', estado_partido: 'Programado', fecha_jornada: 'Jornada 1' },
-                    { id_partido: 'partido_2', local: 'Titanes Básquet', visitante: 'Golden State Basket', marcador_local: '', marcador_visitante: '', estado_partido: 'Programado', fecha_jornada: 'Jornada 1' },
-                    { id_partido: 'partido_3', local: 'Dream Team FC', visitante: 'Golden State Basket', marcador_local: '3', marcador_visitante: '1', estado_partido: 'Finalizado', fecha_jornada: 'Jornada 2' }
-                ];
-                localStorage.setItem(`olympia_partidos_${idTorneo}`, JSON.stringify(fixturePartidos));
+            // 2. Cargar fixture/partidos desde el backend
+            try {
+                const resp = await fetch(`http://localhost/olympia-backend/fixture/obtener_fixture.php?id_torneo=${idTorneo}`);
+                const data = await resp.json();
+                if (data && data.partidos) {
+                    setPartidos(data.partidos);
+                } else {
+                    setPartidos([]);
+                }
+            } catch (error) {
+                console.error("Error al cargar fixture:", error);
+                setPartidos([]);
+            } finally {
+                setCargando(false);
             }
-
-            setPartidos(fixturePartidos);
-            setCargando(false);
         };
 
-        cargarFixture();
+        cargarTorneoYFixture();
     }, [idTorneo]);
 
     const handleLogout = () => {
@@ -139,7 +127,7 @@ const CargaResultadosAsistente = () => {
         setPartidoEditando(null);
 
         // Simular llamada de actualización al backend
-        fetch("http://localhost/olympia-backend/guardar_marcador.php", {
+        fetch("http://localhost/olympia-backend/fixture/guardar_marcador.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -219,8 +207,12 @@ const CargaResultadosAsistente = () => {
                             Cargando fixture...
                         </div>
                     ) : partidos.length === 0 ? (
-                        <div className="bg-slate-900/30 border border-slate-850 p-12 rounded-3xl text-center text-slate-500 text-sm">
-                            No se han programado partidos para este torneo aún.
+                        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center space-y-4 shadow-xl">
+                            <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto animate-pulse" />
+                            <h3 className="text-xl font-bold text-white">Fixture no disponible</h3>
+                            <p className="text-slate-400 text-sm max-w-md mx-auto">
+                                El organizador de la competencia aún no ha generado el fixture oficial de partidos para este torneo.
+                            </p>
                         </div>
                     ) : (
                         <div className="space-y-4">

@@ -3,16 +3,19 @@ import { Link } from 'react-router-dom';
 import { Trophy, Users, ShieldCheck, Activity, Calendar, ArrowRight, Hourglass } from 'lucide-react';
 
 const DashboardAdmin = () => {
+    const userName = localStorage.getItem('olympia_user_name') || '';
     const [torneos, setTorneos] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [activeTab, setActiveTab] = useState('activos'); // 'activos' o 'historial'
 
     const cargarTorneos = async () => {
         try {
-            const resp = await fetch("http://localhost/olympia-backend/obtener_torneos.php");
+            const resp = await fetch("http://localhost/olympia-backend/torneos/obtener_torneos.php");
             const data = await resp.json();
             if (Array.isArray(data)) {
-                setTorneos(data);
+                const eliminados = JSON.parse(localStorage.getItem('olympia_eliminados_ids') || '[]');
+                const torneosVisibles = data.filter(t => !eliminados.includes(t.id_torneo));
+                setTorneos(torneosVisibles);
             }
         } catch (error) {
             console.error("Error al cargar torneos:", error);
@@ -67,7 +70,7 @@ const DashboardAdmin = () => {
                 </span>
                 <Link to={`/admin/gestor-equipos/${torneo.id_torneo}/${encodeURIComponent(torneo.nombre_torneo)}`}>
                     <button className="text-sm font-bold text-blue-500 hover:text-blue-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                        Control Center <ArrowRight className="h-4 w-4" />
+                        Panel de control <ArrowRight className="h-4 w-4" />
                     </button>
                 </Link>
             </div>
@@ -86,7 +89,7 @@ const DashboardAdmin = () => {
                         <span>Administrador de Torneo</span>
                     </div>
                     <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
-                        Panel de Control
+                        {userName ? `¡Bienvenido, ${userName}!` : 'Panel de Control'}
                     </h1>
                     <p className="text-slate-400 text-sm mt-1 max-w-xl">
                         Gestiona tus competencias, procesa solicitudes de inscripción, genera fixtures oficiales y actualiza marcadores.

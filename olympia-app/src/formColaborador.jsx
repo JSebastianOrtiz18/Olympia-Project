@@ -20,7 +20,7 @@ const FormColaborador = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const resp = await fetch("http://localhost/olympia-backend/guardar_colaborador.php", {
+      const resp = await fetch("http://localhost/olympia-backend/usuarios/guardar_colaborador.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)

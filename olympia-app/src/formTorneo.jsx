@@ -25,7 +25,7 @@ const FormTorneo = () => {
             const cargarDatosEdicion = async () => {
                 try {
                     // 1. Obtener los torneos para rellenar el formulario
-                    const respTorneos = await fetch("http://localhost/olympia-backend/obtener_torneos.php");
+                    const respTorneos = await fetch("http://localhost/olympia-backend/torneos/obtener_torneos.php");
                     const dataTorneos = await respTorneos.json();
                     
                     if (Array.isArray(dataTorneos)) {
@@ -47,7 +47,7 @@ const FormTorneo = () => {
                     }
 
                     // 2. Verificar si ya tiene partidos registrados (HU-1.2)
-                    const respFixture = await fetch(`http://localhost/olympia-backend/obtener_fixture.php?id_torneo=${idTorneo}`);
+                    const respFixture = await fetch(`http://localhost/olympia-backend/fixture/obtener_fixture.php?id_torneo=${idTorneo}`);
                     const dataFixture = await respFixture.json();
                     if (dataFixture && dataFixture.partidos && dataFixture.partidos.length > 0) {
                         setHasMatches(true);
@@ -123,7 +123,7 @@ const FormTorneo = () => {
         };
 
         try {
-            const response = await fetch("http://localhost/olympia-backend/guardar_torneo.php", {
+            const response = await fetch("http://localhost/olympia-backend/torneos/guardar_torneo.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(datosParaEnviar),

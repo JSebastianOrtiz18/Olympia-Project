@@ -98,6 +98,7 @@ CREATE TABLE Torneo
   max_equipos INT NOT NULL,
   id_formato INT NOT NULL,
   id_disciplina INT NOT NULL,
+  pin_asistente VARCHAR(6) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id_torneo)
@@ -136,15 +137,13 @@ ALTER TABLE Equipo
 
 
 -- ------------------------------------------------------------------------------
--- TABLA: Partido
--- Descripción: Almacena los encuentros generados por el fixture de un torneo.
--- ------------------------------------------------------------------------------
 CREATE TABLE Partido
 (
   id_partido INT NOT NULL AUTO_INCREMENT,
   estado_partido VARCHAR(20) NOT NULL,
   fecha_partido DATE NOT NULL,
   id_torneo INT NOT NULL,
+  fase_jornada VARCHAR(50) NOT NULL,
   PRIMARY KEY (id_partido)
 );
 

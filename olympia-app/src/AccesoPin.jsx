@@ -9,7 +9,7 @@ const AccesoPin = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
@@ -27,30 +27,16 @@ const AccesoPin = () => {
             return;
         }
 
-        // Buscar en localStorage el PIN del torneo
-        let matchingTorneoId = null;
+        try {
+            const resp = await fetch("http://localhost/olympia-backend/torneos/verificar_pin.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pin: pin.trim() })
+            });
+            const data = await resp.json();
 
-        // Buscar en todas las llaves de localStorage que tengan el patrón de PIN
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('olympia_pin_')) {
-                const storedPin = localStorage.getItem(key);
-                if (storedPin && storedPin.toLowerCase() === pin.trim().toLowerCase()) {
-                    matchingTorneoId = key.replace('olympia_pin_', '');
-                    break;
-                }
-            }
-        }
-
-        // Si no se encontró un PIN dinámico, damos soporte a un PIN demo quemado para torneo_1 (Superliga)
-        if (!matchingTorneoId && pin.toLowerCase() === 'ref123') {
-            matchingTorneoId = 'torneo_1';
-            // Guardar para uso futuro
-            localStorage.setItem('olympia_pin_torneo_1', 'ref123');
-        }
-
-        setTimeout(() => {
-            if (matchingTorneoId) {
+            if (data.status === 'success') {
+                const matchingTorneoId = data.id_torneo.toString();
                 // Iniciar sesión temporal como Asistente
                 localStorage.setItem('olympia_token', 'true');
                 localStorage.setItem('olympia_role', 'Asistente');
@@ -60,10 +46,13 @@ const AccesoPin = () => {
                 // Redirigir a la vista del asistente
                 navigate(`/asistente/${matchingTorneoId}`);
             } else {
-                setError('El código PIN ingresado es incorrecto o ya ha expirado. Por favor, solicita uno nuevo al organizador.');
+                setError(data.mensaje || 'El código PIN ingresado es incorrecto o ya ha expirado. Por favor, solicita uno nuevo al organizador.');
                 setLoading(false);
             }
-        }, 800);
+        } catch (err) {
+            setError('Error al conectar con el servidor.');
+            setLoading(false);
+        }
     };
 
     return (

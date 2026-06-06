@@ -5,7 +5,6 @@ import { ArrowLeft, Users, ShieldAlert, Sparkles } from 'lucide-react';
 const FormEquipo = () => {
     const navigate = useNavigate();
     const userEmail = localStorage.getItem('olympia_user_email') || 'capitan@olympia.com';
-    const [torneos, setTorneos] = useState([]);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
@@ -13,38 +12,10 @@ const FormEquipo = () => {
         nombreEquipo: '',
         descripcionEquipo: '',
         categoriaEquipo: 'Libre',
-        deporteEquipo: 'Futbol',
-        torneoAsignado: ''
+        deporteEquipo: 'Futbol'
     });
-
-    useEffect(() => {
-        const cargarTorneos = async () => {
-            try {
-                const resp = await fetch("http://localhost/olympia-backend/verificar_torneos.php");
-                const data = await resp.json();
-                if(data.status !== 'error') {
-                    setTorneos(data);
-                }
-            } catch (error) {
-                console.error("Error cargando torneos del backend, usando mock...", error);
-                // Si falla el backend, cargamos del localStorage si existen torneos
-                const mockTorneos = [
-                    { id_torneo: 'torneo_1', nombre_torneo: 'Superliga de Fútbol Amateur', deporte_torneo: 'Futbol', categoria_torneo: 'Libre' },
-                    { id_torneo: 'torneo_2', nombre_torneo: 'Torneo de Básquet 3x3', deporte_torneo: 'Basquet', categoria_torneo: 'Libre' },
-                    { id_torneo: 'torneo_3', nombre_torneo: 'Liga Universitaria de Vóley', deporte_torneo: 'Voley', categoria_torneo: 'Libre' },
-                    { id_torneo: 'torneo_4', nombre_torneo: 'Torneo Ping-Pong Dobles', deporte_torneo: 'Ping-Pong', categoria_torneo: 'Libre' }
-                ];
-                setTorneos(mockTorneos);
-            }
-        };
-        cargarTorneos();
-    }, []);
-
     const handleChange = (e) => {
-        const { name, value } = formData.deporteEquipo !== undefined && name === 'deporteEquipo' 
-            ? { name, value: e.target.value } 
-            : { name: e.target.name, value: e.target.value };
-        
+        const { name, value } = e.target;
         setFormData((prevData) => ({ ...prevData, [name]: value }));
         setError('');
     };
@@ -65,8 +36,7 @@ const FormEquipo = () => {
             nombre_equipo: formData.nombreEquipo,
             descripcion_equipo: formData.descripcionEquipo,
             categoria_equipo: formData.categoriaEquipo,
-            deporte_equipo: formData.deporteEquipo,
-            id_torneo: formData.torneoAsignado
+            deporte_equipo: formData.deporteEquipo
         };
 
         let savedLocally = false;
@@ -89,27 +59,8 @@ const FormEquipo = () => {
             localStorage.setItem('olympia_equipos', JSON.stringify(listaEquipos));
             savedLocally = true;
 
-            // Si seleccionó un torneo al que inscribirse directamente, crear una solicitud de inscripción pendiente
-            if (formData.torneoAsignado) {
-                const tor = torneos.find(t => t.id_torneo === formData.torneoAsignado);
-                const storedSolicitudes = localStorage.getItem('olympia_solicitudes') || '[]';
-                const listaSolicitudes = JSON.parse(storedSolicitudes);
-                
-                listaSolicitudes.push({
-                    id: 'sol_' + Date.now(),
-                    idTorneo: formData.torneoAsignado,
-                    nombreTorneo: tor ? tor.nombre_torneo : 'Torneo Vinculado',
-                    idEquipo: newId,
-                    nombreEquipo: formData.nombreEquipo,
-                    deporte: formData.deporteEquipo,
-                    estado: 'Pendiente',
-                    fechaSolicitud: new Date().toISOString().split('T')[0]
-                });
-                localStorage.setItem('olympia_solicitudes', JSON.stringify(listaSolicitudes));
-            }
-
             // Llamar al backend
-            const response = await fetch("http://localhost/olympia-backend/guardar_equipo.php", {
+            const response = await fetch("http://localhost/olympia-backend/equipos/guardar_equipo.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(datosEnvio),
@@ -168,23 +119,6 @@ const FormEquipo = () => {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Vincular a un Torneo Disponible (Opcional)</label>
-                        <select 
-                            name="torneoAsignado" 
-                            value={formData.torneoAsignado} 
-                            onChange={handleChange} 
-                            className="block w-full px-4 py-3 bg-slate-950/60 border border-slate-850 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-slate-200 text-sm transition-colors cursor-pointer"
-                        >
-                            <option value="">No vincular por ahora (Equipo Independiente)</option>
-                            {torneos.map((t) => (
-                                <option key={t.id_torneo} value={t.id_torneo}>
-                                    {t.nombre_torneo} ({t.deporte_torneo === 'Futbol' ? 'Fútbol' : t.deporte_torneo} - {t.categoria_torneo})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
                     <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Nombre del Equipo</label>
                         <input 

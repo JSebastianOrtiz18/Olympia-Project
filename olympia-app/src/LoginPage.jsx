@@ -63,6 +63,16 @@ const LoginPage = () => {
         localStorage.setItem('olympia_role', role);
         localStorage.setItem('olympia_user_email', email);
         
+        if (email.toLowerCase() === 'admin@olympia.com') {
+            localStorage.setItem('olympia_user_name', 'Admin');
+        } else if (email.toLowerCase() === 'organizador@olympia.com') {
+            localStorage.setItem('olympia_user_name', 'Organizador');
+        } else if (email.toLowerCase() === 'capitan@olympia.com') {
+            localStorage.setItem('olympia_user_name', 'Carlos Tévez');
+        } else {
+            localStorage.setItem('olympia_user_name', email.split('@')[0]);
+        }
+        
         // El SuperAdmin y el Organizador inician sesión directamente en modo Organizador (no participan como capitán)
         localStorage.setItem('olympia_view_mode', (role === 'Organizador' || role === 'SuperAdmin') ? 'Organizador' : 'Capitán'); // HU-7.2
 

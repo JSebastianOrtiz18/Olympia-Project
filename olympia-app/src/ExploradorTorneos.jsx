@@ -20,29 +20,33 @@ const ExploradorTorneos = () => {
         // Cargar Torneos (backend fallback a local storage)
         const cargarTorneos = async () => {
             let torneosLista = [];
+            let backendExito = false;
             try {
-                const resp = await fetch("http://localhost/olympia-backend/obtener_torneos.php");
+                const resp = await fetch("http://localhost/olympia-backend/torneos/obtener_torneos.php");
                 const data = await resp.json();
                 if (Array.isArray(data)) {
                     torneosLista = data;
+                    backendExito = true;
                 }
             } catch (error) {
                 console.log("No se pudo conectar con el backend para torneos, cargando locales...");
             }
 
-            // Fallback a localStorage para mantener sincronía
-            const localTorneos = localStorage.getItem('olympia_torneos_local');
-            if (localTorneos) {
-                torneosLista = JSON.parse(localTorneos);
-            } else {
-                // Datos iniciales de torneos para la demo
-                torneosLista = [
-                    { id_torneo: 'torneo_1', nombre_torneo: 'Superliga de Fútbol Amateur', deporte_torneo: 'Futbol', categoria_torneo: 'Libre', cupos_max: 8, cupos_libres: 4, estado: 'Programado', fecha_inicio: '2026-06-01' },
-                    { id_torneo: 'torneo_2', nombre_torneo: 'Torneo de Básquet 3x3', deporte_torneo: 'Basquet', categoria_torneo: 'Libre', cupos_max: 6, cupos_libres: 0, estado: 'Programado', fecha_inicio: '2026-06-10' },
-                    { id_torneo: 'torneo_3', nombre_torneo: 'Liga Universitaria de Vóley', deporte_torneo: 'Voley', categoria_torneo: 'Libre', cupos_max: 12, cupos_libres: 2, estado: 'Programado', fecha_inicio: '2026-07-05' },
-                    { id_torneo: 'torneo_4', nombre_torneo: 'Torneo Ping-Pong Dobles', deporte_torneo: 'Ping-Pong', categoria_torneo: 'Libre', cupos_max: 8, cupos_libres: 6, estado: 'Programado', fecha_inicio: '2026-06-25' }
-                ];
-                localStorage.setItem('olympia_torneos_local', JSON.stringify(torneosLista));
+            if (!backendExito) {
+                // Fallback a localStorage para mantener sincronía
+                const localTorneos = localStorage.getItem('olympia_torneos_local');
+                if (localTorneos) {
+                    torneosLista = JSON.parse(localTorneos);
+                } else {
+                    // Datos iniciales de torneos para la demo
+                    torneosLista = [
+                        { id_torneo: 'torneo_1', nombre_torneo: 'Superliga de Fútbol Amateur', deporte_torneo: 'Futbol', categoria_torneo: 'Libre', cupos_max: 8, cupos_libres: 4, estado: 'Programado', fecha_inicio: '2026-06-01' },
+                        { id_torneo: 'torneo_2', nombre_torneo: 'Torneo de Básquet 3x3', deporte_torneo: 'Basquet', categoria_torneo: 'Libre', cupos_max: 6, cupos_libres: 0, estado: 'Programado', fecha_inicio: '2026-06-10' },
+                        { id_torneo: 'torneo_3', nombre_torneo: 'Liga Universitaria de Vóley', deporte_torneo: 'Voley', categoria_torneo: 'Libre', cupos_max: 12, cupos_libres: 2, estado: 'Programado', fecha_inicio: '2026-07-05' },
+                        { id_torneo: 'torneo_4', nombre_torneo: 'Torneo Ping-Pong Dobles', deporte_torneo: 'Ping-Pong', categoria_torneo: 'Libre', cupos_max: 8, cupos_libres: 6, estado: 'Programado', fecha_inicio: '2026-06-25' }
+                    ];
+                    localStorage.setItem('olympia_torneos_local', JSON.stringify(torneosLista));
+                }
             }
 
             // Excluir los torneos que hayan sido eliminados mediante baja lógica
@@ -141,7 +145,7 @@ const ExploradorTorneos = () => {
         setSuccess(`¡Solicitud enviada para "${equipo.nombre}"! El organizador la revisará.`);
         
         // Simular llamada al backend
-        fetch("http://localhost/olympia-backend/guardar_solicitud.php", {
+        fetch("http://localhost/olympia-backend/solicitudes/guardar_solicitud.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

@@ -112,7 +112,7 @@ const GestionSolicitudes = () => {
         setSolicitudes(nuevasSolicitudes);
 
         // Llamar al backend
-        fetch("http://localhost/olympia-backend/procesar_solicitud.php", {
+        fetch("http://localhost/olympia-backend/solicitudes/procesar_solicitud.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -143,7 +143,7 @@ const GestionSolicitudes = () => {
         setSuccess(`Solicitud de "${solicitud.nombreEquipo}" rechazada.`);
 
         // Llamar al backend
-        fetch("http://localhost/olympia-backend/procesar_solicitud.php", {
+        fetch("http://localhost/olympia-backend/solicitudes/procesar_solicitud.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

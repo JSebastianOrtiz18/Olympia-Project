@@ -5,6 +5,7 @@ import { Trophy, Users, Plus, ArrowRight, Sparkles, Clock, AlertTriangle, Shield
 const DashboardCapitan = () => {
     const navigate = useNavigate();
     const userEmail = localStorage.getItem('olympia_user_email') || 'capitan@olympia.com';
+    const userName = localStorage.getItem('olympia_user_name') || '';
     const [equipos, setEquipos] = useState([]);
     const [solicitudes, setSolicitudes] = useState([]);
 
@@ -59,18 +60,7 @@ const DashboardCapitan = () => {
         if (storedSolicitudes) {
             listaSolicitudes = JSON.parse(storedSolicitudes);
         } else {
-            listaSolicitudes = [
-                {
-                    id: 'sol_1',
-                    idTorneo: 'torneo_1',
-                    nombreTorneo: 'Superliga de Fútbol Amateur',
-                    idEquipo: 'eq_1',
-                    nombreEquipo: 'Dream Team FC',
-                    deporte: 'Futbol',
-                    estado: 'Pendiente',
-                    fechaSolicitud: '2026-05-20'
-                }
-            ];
+            listaSolicitudes = [];
             localStorage.setItem('olympia_solicitudes', JSON.stringify(listaSolicitudes));
         }
         setSolicitudes(listaSolicitudes.filter(sol => sol.idEquipo === 'eq_1' || listaEquipos.some(eq => eq.id === sol.idEquipo && eq.capitanEmail === userEmail)));
@@ -101,8 +91,8 @@ const DashboardCapitan = () => {
             {/* Encabezado */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/50 p-6 rounded-3xl border border-slate-800 backdrop-blur-md">
                 <div>
-                    <h1 className="text-3xl font-black bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">
-                        PANEL DEL CAPITÁN
+                    <h1 className="text-3xl font-black bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent uppercase">
+                        {userName ? `¡Bienvenido, ${userName}!` : 'Panel del Capitán'}
                     </h1>
                     <p className="text-slate-400 text-sm mt-1">
                         Crea equipos, gestiona plantillas y solicita inscripciones a torneos deportivos.
