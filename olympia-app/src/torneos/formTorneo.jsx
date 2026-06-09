@@ -112,6 +112,7 @@ const FormTorneo = () => {
             return;
         }
 
+        const userDni = localStorage.getItem('olympia_user_dni');
         const datosParaEnviar = {
             nombre_torneo: formData.nombreTorneo,
             torneo_inicio: formData.fechaInicio,
@@ -119,7 +120,8 @@ const FormTorneo = () => {
             max_equipos: maxEq,
             formato_torneo: formData.formatoTorneo,
             categoria_torneo: formData.categoriaTorneo,
-            deporte_torneo: formData.deporteTorneo
+            deporte_torneo: formData.deporteTorneo,
+            creador_dni: userDni ? parseInt(userDni) : null
         };
 
         try {

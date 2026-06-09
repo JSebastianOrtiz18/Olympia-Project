@@ -13,144 +13,106 @@ const GestionSolicitudes = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    useEffect(() => {
-        // Cargar solicitudes de localStorage
-        const storedSolicitudes = localStorage.getItem('olympia_solicitudes');
-        if (storedSolicitudes) {
-            setSolicitudes(JSON.parse(storedSolicitudes));
-        } else {
-            // Inicializar datos demo si no existen
-            const demoSol = [
-                {
-                    id: 'sol_1',
-                    idTorneo: 'torneo_1',
-                    nombreTorneo: 'Superliga de Fútbol Amateur',
-                    idEquipo: 'eq_1',
-                    nombreEquipo: 'Dream Team FC',
-                    deporte: 'Futbol',
-                    estado: 'Pendiente',
-                    fechaSolicitud: '2026-05-20'
-                }
-            ];
-            localStorage.setItem('olympia_solicitudes', JSON.stringify(demoSol));
-            setSolicitudes(demoSol);
-        }
+    const cargarDatos = async () => {
+        try {
+            const userDni = localStorage.getItem('olympia_user_dni');
+            const urlSol = userDni 
+                ? `http://localhost/olympia-backend/solicitudes/obtener_solicitudes.php?dni_usuario=${userDni}`
+                : "http://localhost/olympia-backend/solicitudes/obtener_solicitudes.php";
 
-        // Cargar torneos locales
-        const storedTorneos = localStorage.getItem('olympia_torneos_local');
-        if (storedTorneos) {
-            setTorneos(JSON.parse(storedTorneos));
-        } else {
-            const defaultTorneos = [
-                { id_torneo: 'torneo_1', nombre_torneo: 'Superliga de Fútbol Amateur', deporte_torneo: 'Futbol', categoria_torneo: 'Libre', cupos_max: 8, cupos_libres: 4, estado: 'Programado', fecha_inicio: '2026-06-01' },
-                { id_torneo: 'torneo_2', nombre_torneo: 'Torneo de Básquet 3x3', deporte_torneo: 'Basquet', categoria_torneo: 'Libre', cupos_max: 6, cupos_libres: 0, estado: 'Programado', fecha_inicio: '2026-06-10' },
-                { id_torneo: 'torneo_3', nombre_torneo: 'Liga Universitaria de Vóley', deporte_torneo: 'Voley', categoria_torneo: 'Libre', cupos_max: 12, cupos_libres: 2, estado: 'Programado', fecha_inicio: '2026-07-05' },
-                { id_torneo: 'torneo_4', nombre_torneo: 'Torneo Ping-Pong Dobles', deporte_torneo: 'Ping-Pong', categoria_torneo: 'Libre', cupos_max: 8, cupos_libres: 6, estado: 'Programado', fecha_inicio: '2026-06-25' }
-            ];
-            localStorage.setItem('olympia_torneos_local', JSON.stringify(defaultTorneos));
-            setTorneos(defaultTorneos);
+            // 1. Cargar solicitudes de la DB
+            const respSol = await fetch(urlSol);
+            const dataSol = await respSol.json();
+            if (dataSol && dataSol.status === 'error') {
+                throw new Error(dataSol.mensaje);
+            }
+            if (Array.isArray(dataSol)) {
+                setSolicitudes(dataSol);
+            }
+
+            // 2. Cargar torneos de la DB
+            const respTorneos = await fetch("http://localhost/olympia-backend/torneos/obtener_torneos.php");
+            const dataTorneos = await respTorneos.json();
+            if (dataTorneos && dataTorneos.status === 'error') {
+                throw new Error(dataTorneos.mensaje);
+            }
+            if (Array.isArray(dataTorneos)) {
+                setTorneos(dataTorneos);
+            }
+        } catch (error) {
+            console.error("Error al cargar datos del backend:", error);
+            // Fallback a localStorage
+            const storedSolicitudes = localStorage.getItem('olympia_solicitudes');
+            if (storedSolicitudes) setSolicitudes(JSON.parse(storedSolicitudes));
+            const storedTorneos = localStorage.getItem('olympia_torneos_local');
+            if (storedTorneos) setTorneos(JSON.parse(storedTorneos));
         }
+    };
+
+    useEffect(() => {
+        cargarDatos();
     }, []);
 
-    const handleAprobar = (idSolicitud) => {
+    const handleAprobar = async (idSolicitud) => {
         setError('');
         setSuccess('');
 
-        const solIndex = solicitudes.findIndex(s => s.id === idSolicitud);
-        if (solIndex === -1) return;
-        const solicitud = solicitudes[solIndex];
+        const solicitud = solicitudes.find(s => s.id === idSolicitud);
+        if (!solicitud) return;
 
-        // 1. Obtener torneo y verificar cupos
-        const torneoIndex = torneos.findIndex(t => t.id_torneo === solicitud.idTorneo);
-        if (torneoIndex === -1) {
-            setError('El torneo asociado a esta solicitud no existe.');
-            return;
-        }
-
-        const torneo = torneos[torneoIndex];
-        if (torneo.cupos_libres <= 0) {
+        // Obtener torneo y verificar cupos
+        const torneo = torneos.find(t => t.id_torneo === solicitud.idTorneo);
+        if (torneo && torneo.cupos_libres <= 0) {
             setError('No hay cupos disponibles en el torneo para aprobar esta solicitud.');
             return;
         }
 
-        // 2. Decrementar cupo del torneo
-        const nuevosTorneos = [...torneos];
-        nuevosTorneos[torneoIndex].cupos_libres -= 1;
-        
-        let inscripcionesCerradas = false;
-        if (nuevosTorneos[torneoIndex].cupos_libres === 0) {
-            inscripcionesCerradas = true;
-            // Se puede cambiar opcionalmente el estado o marcar que las inscripciones están cerradas
-        }
-
-        // Guardar torneos actualizados
-        localStorage.setItem('olympia_torneos_local', JSON.stringify(nuevosTorneos));
-        setTorneos(nuevosTorneos);
-
-        // 3. Aprobar solicitud actual
-        let nuevasSolicitudes = solicitudes.map(s => {
-            if (s.id === idSolicitud) {
-                return { ...s, estado: 'Aprobado' };
-            }
-            return s;
-        });
-
-        // 4. Si el torneo se llenó, rechazar automáticamente todas las demás solicitudes PENDIENTES para este torneo (HU-2.4)
-        if (inscripcionesCerradas) {
-            nuevasSolicitudes = nuevasSolicitudes.map(s => {
-                if (s.idTorneo === solicitud.idTorneo && s.estado === 'Pendiente') {
-                    return { ...s, estado: 'Rechazado' }; // Rechazado automáticamente por falta de cupo
-                }
-                return s;
+        try {
+            const resp = await fetch("http://localhost/olympia-backend/solicitudes/procesar_solicitud.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id_solicitud: idSolicitud,
+                    accion: 'aprobar'
+                })
             });
-            setSuccess(`¡Solicitud aprobada! El torneo "${torneo.nombre_torneo}" se ha llenado. Las solicitudes restantes para este torneo han sido rechazadas automáticamente.`);
-        } else {
-            setSuccess(`Solicitud de "${solicitud.nombreEquipo}" aprobada para el torneo "${torneo.nombre_torneo}".`);
+            const data = await resp.json();
+
+            if (data.status === 'success') {
+                setSuccess(data.mensaje || `Solicitud aprobada para el torneo "${torneo?.nombre_torneo}".`);
+                await cargarDatos();
+            } else {
+                setError(data.mensaje || 'Error al aprobar la solicitud.');
+            }
+        } catch (err) {
+            setError('Error de conexión con el servidor.');
         }
-
-        localStorage.setItem('olympia_solicitudes', JSON.stringify(nuevasSolicitudes));
-        setSolicitudes(nuevasSolicitudes);
-
-        // Llamar al backend
-        fetch("http://localhost/olympia-backend/solicitudes/procesar_solicitud.php", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                id_solicitud: idSolicitud,
-                accion: 'aprobar'
-            })
-        }).catch(err => console.log("Backend offline, aprobado localmente"));
     };
 
-    const handleRechazar = (idSolicitud) => {
+    const handleRechazar = async (idSolicitud) => {
         setError('');
         setSuccess('');
 
-        const solIndex = solicitudes.findIndex(s => s.id === idSolicitud);
-        if (solIndex === -1) return;
-        const solicitud = solicitudes[solIndex];
+        try {
+            const resp = await fetch("http://localhost/olympia-backend/solicitudes/procesar_solicitud.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id_solicitud: idSolicitud,
+                    accion: 'rechazar'
+                })
+            });
+            const data = await resp.json();
 
-        // Actualizar estado a rechazado
-        const nuevasSolicitudes = solicitudes.map(s => {
-            if (s.id === idSolicitud) {
-                return { ...s, estado: 'Rechazado' };
+            if (data.status === 'success') {
+                setSuccess(data.mensaje || 'Solicitud rechazada con éxito.');
+                await cargarDatos();
+            } else {
+                setError(data.mensaje || 'Error al rechazar la solicitud.');
             }
-            return s;
-        });
-
-        localStorage.setItem('olympia_solicitudes', JSON.stringify(nuevasSolicitudes));
-        setSolicitudes(nuevasSolicitudes);
-        setSuccess(`Solicitud de "${solicitud.nombreEquipo}" rechazada.`);
-
-        // Llamar al backend
-        fetch("http://localhost/olympia-backend/solicitudes/procesar_solicitud.php", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                id_solicitud: idSolicitud,
-                accion: 'rechazar'
-            })
-        }).catch(err => console.log("Backend offline, rechazado localmente"));
+        } catch (err) {
+            setError('Error de conexión con el servidor.');
+        }
     };
 
     const solicitudesFiltradas = solicitudes.filter(sol => {

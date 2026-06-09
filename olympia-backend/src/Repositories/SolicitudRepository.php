@@ -68,10 +68,12 @@ class SolicitudRepository {
      */
     public function findAll(): array {
         $stmt = $this->db->query("
-            SELECT s.*, t.nombre_torneo, e.nombre_equipo, t.deporte_torneo
+            SELECT s.*, t.nombre_torneo, e.nombre_equipo, dep.nombre_deporte AS deporte_torneo
             FROM Solicitud s
             INNER JOIN Torneo t ON s.id_torneo = t.id_torneo
             INNER JOIN Equipo e ON s.id_equipo = e.id_equipo
+            INNER JOIN Disciplina d ON t.id_disciplina = d.id_disciplina
+            INNER JOIN Deporte dep ON d.id_deporte = dep.id_deporte
             ORDER BY s.fecha_solicitud DESC
         ");
         
@@ -151,5 +153,40 @@ class SolicitudRepository {
         ");
         $stmt->execute(['id_equipo' => $id_equipo, 'id_torneo' => $id_torneo]);
         return (bool)$stmt->fetch();
+    }
+
+    /**
+     * Recupera las solicitudes de inscripción para los torneos a los que un organizador está asignado.
+     */
+    public function findAllByOrganizador(int $dni_organizador): array {
+        $stmt = $this->db->prepare("
+            SELECT s.*, t.nombre_torneo, e.nombre_equipo, dep.nombre_deporte AS deporte_torneo
+            FROM Solicitud s
+            INNER JOIN Torneo t ON s.id_torneo = t.id_torneo
+            INNER JOIN Equipo e ON s.id_equipo = e.id_equipo
+            INNER JOIN Disciplina d ON t.id_disciplina = d.id_disciplina
+            INNER JOIN Deporte dep ON d.id_deporte = dep.id_deporte
+            INNER JOIN List_colaboradores LC ON t.id_torneo = LC.id_torneo
+            WHERE LC.dni_usuario = :dni AND LC.id_rol = 2 -- Rol Organizador
+            ORDER BY s.fecha_solicitud DESC
+        ");
+        $stmt->execute(['dni' => $dni_organizador]);
+        
+        $solicitudes = [];
+        while ($row = $stmt->fetch()) {
+            $sol = new Solicitud(
+                (int)$row['id_torneo'],
+                (int)$row['id_equipo'],
+                $row['estado_solicitud'],
+                $row['fecha_solicitud'],
+                $row['id_solicitud']
+            );
+            $sol->nombre_torneo = $row['nombre_torneo'];
+            $sol->nombre_equipo = $row['nombre_equipo'];
+            $sol->deporte_torneo = $row['deporte_torneo'];
+            $solicitudes[] = $sol;
+        }
+
+        return $solicitudes;
     }
 }

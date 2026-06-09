@@ -65,13 +65,28 @@ const ExploradorTorneos = () => {
             }
         }
 
-        // Cargar solicitudes de inscripción
-        const storedSolicitudes = localStorage.getItem('olympia_solicitudes');
-        if (storedSolicitudes) {
-            setSolicitudes(JSON.parse(storedSolicitudes));
-        }
+        // Cargar solicitudes de inscripción de la DB
+        const cargarSolicitudes = async () => {
+            try {
+                const resp = await fetch("http://localhost/olympia-backend/solicitudes/obtener_solicitudes.php");
+                const data = await resp.json();
+                if (data && data.status === 'error') {
+                    throw new Error(data.mensaje);
+                }
+                if (Array.isArray(data)) {
+                    setSolicitudes(data);
+                }
+            } catch (err) {
+                console.error("Error al cargar solicitudes de la DB:", err);
+                const storedSolicitudes = localStorage.getItem('olympia_solicitudes');
+                if (storedSolicitudes) {
+                    setSolicitudes(JSON.parse(storedSolicitudes));
+                }
+            }
+        };
 
         cargarTorneos();
+        cargarSolicitudes();
     }, [userEmail]);
 
     const getMinPlayers = (deporte) => {
@@ -84,7 +99,7 @@ const ExploradorTorneos = () => {
         }
     };
 
-    const handleInscribirse = (torneo) => {
+    const handleInscribirse = async (torneo) => {
         setError('');
         setSuccess('');
 
@@ -113,8 +128,10 @@ const ExploradorTorneos = () => {
             return;
         }
 
-        // 3. Validar si ya hay una solicitud o inscripción activa
-        const yaSolicitado = solicitudes.some(sol => sol.idTorneo === torneo.id_torneo && sol.idEquipo === equipo.id);
+        // 3. Validar si ya hay una solicitud o inscripción activa (comparación flexible de ID)
+        const yaSolicitado = solicitudes.some(sol => 
+            sol.idTorneo.toString() === torneo.id_torneo.toString() && sol.idEquipo.toString() === equipo.id.toString()
+        );
         if (yaSolicitado) {
             setError(`Ya has solicitado la inscripción de "${equipo.nombre}" en este torneo.`);
             return;
@@ -126,34 +143,31 @@ const ExploradorTorneos = () => {
             return;
         }
 
-        // Crear la solicitud en localStorage
-        const nuevaSolicitud = {
-            id: 'sol_' + Date.now(),
-            idTorneo: torneo.id_torneo,
-            nombreTorneo: torneo.nombre_torneo,
-            idEquipo: equipo.id,
-            nombreEquipo: equipo.nombre,
-            deporte: torneo.deporte_torneo,
-            estado: 'Pendiente',
-            fechaSolicitud: new Date().toISOString().split('T')[0]
-        };
+        try {
+            const resp = await fetch("http://localhost/olympia-backend/solicitudes/guardar_solicitud.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id_torneo: torneo.id_torneo,
+                    id_equipo: equipo.id
+                })
+            });
+            const data = await resp.json();
 
-        const nuevasSolicitudes = [...solicitudes, nuevaSolicitud];
-        localStorage.setItem('olympia_solicitudes', JSON.stringify(nuevasSolicitudes));
-        setSolicitudes(nuevasSolicitudes);
-
-        setSuccess(`¡Solicitud enviada para "${equipo.nombre}"! El organizador la revisará.`);
-        
-        // Simular llamada al backend
-        fetch("http://localhost/olympia-backend/solicitudes/guardar_solicitud.php", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                id_torneo: torneo.id_torneo,
-                id_equipo: equipo.id,
-                estado: 'Pendiente'
-            })
-        }).catch(err => console.log("Backend offline, solicitud guardada localmente"));
+            if (data.status === 'success') {
+                setSuccess(`¡Solicitud enviada para "${equipo.nombre}"! El organizador la revisará.`);
+                // Recargar solicitudes de la DB
+                const respSols = await fetch("http://localhost/olympia-backend/solicitudes/obtener_solicitudes.php");
+                const dataSols = await respSols.json();
+                if (Array.isArray(dataSols)) {
+                    setSolicitudes(dataSols);
+                }
+            } else {
+                setError(data.mensaje || 'Error al enviar la solicitud.');
+            }
+        } catch (err) {
+            setError('Error de conexión con el servidor.');
+        }
     };
 
     // Filtrar la lista de torneos visibles
@@ -278,8 +292,8 @@ const ExploradorTorneos = () => {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {torneosFiltrados.map((t) => {
-                        const solicitado = selectedTeam && solicitudes.some(sol => sol.idTorneo === t.id_torneo && sol.idEquipo === selectedTeam.id);
-                        const estadoSolicitado = solicitado ? solicitudes.find(sol => sol.idTorneo === t.id_torneo && sol.idEquipo === selectedTeam.id).estado : '';
+                        const solicitado = selectedTeam && solicitudes.some(sol => sol.idTorneo.toString() === t.id_torneo.toString() && sol.idEquipo.toString() === selectedTeam.id.toString());
+                        const estadoSolicitado = solicitado ? solicitudes.find(sol => sol.idTorneo.toString() === t.id_torneo.toString() && sol.idEquipo.toString() === selectedTeam.id.toString()).estado : '';
                         const cuposLibres = t.cupos_libres !== undefined ? t.cupos_libres : 4;
                         const esAgotado = cuposLibres <= 0;
                         const minJugadores = getMinPlayers(t.deporte_torneo);

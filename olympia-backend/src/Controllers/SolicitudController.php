@@ -146,13 +146,31 @@ class SolicitudController {
 
     /**
      * Obtiene la lista de todas las solicitudes enviadas.
-     * Opcionalmente utilizado por el panel del organizador.
+     * Opcionalmente filtrada por el DNI del organizador.
      */
     public function obtenerSolicitudes(): void {
         try {
-            $solicitudes = $this->solicitudRepo->findAll();
-            $result = [];
+            $dni = isset($_GET['dni_usuario']) && $_GET['dni_usuario'] !== '' ? (int)$_GET['dni_usuario'] : null;
 
+            if ($dni !== null) {
+                // Verificar el rol del usuario
+                $db = Database::getConnection();
+                $userRepo = new \Olympia\Repositories\UsuarioRepository($db);
+                $roles = $userRepo->getUserRoles($dni);
+
+                if (in_array('SuperAdmin', $roles)) {
+                    // SuperAdmin ve todas las solicitudes
+                    $solicitudes = $this->solicitudRepo->findAll();
+                } else {
+                    // Organizador ve solo las solicitudes de los torneos asignados
+                    $solicitudes = $this->solicitudRepo->findAllByOrganizador($dni);
+                }
+            } else {
+                // Por defecto o fallback: todas las solicitudes
+                $solicitudes = $this->solicitudRepo->findAll();
+            }
+
+            $result = [];
             foreach ($solicitudes as $s) {
                 $result[] = [
                     'id' => $s->id_solicitud,

@@ -35,6 +35,142 @@ class UsuarioController {
     }
 
     /**
+     * Inicia sesión de un usuario.
+     * Endpoint: login.php (POST)
+     */
+    public function loginUsuario(): void {
+        try {
+            $input = json_decode(file_get_contents("php://input"), true);
+
+            if (!$input || !isset($input['email']) || !isset($input['password'])) {
+                throw new Exception("Correo y contraseña son requeridos.");
+            }
+
+            $email = trim($input['email']);
+            $password = $input['password'];
+
+            $usuario = $this->usuarioRepo->findByEmail($email);
+            if (!$usuario) {
+                throw new Exception("El correo electrónico no se encuentra registrado.");
+            }
+
+            // Verificar contraseña
+            if (!password_verify($password, $usuario->password_hash)) {
+                throw new Exception("Contraseña incorrecta.");
+            }
+
+            // Obtener roles del usuario
+            $roles = $this->usuarioRepo->getUserRoles($usuario->dni_usuario);
+
+            // Determinar rol prioritario para devolver en el token de la sesión.
+            // Prioridad: SuperAdmin > Organizador > Asistente > Capitán
+            $rolSeleccionado = 'Capitán';
+            if (in_array('SuperAdmin', $roles)) {
+                $rolSeleccionado = 'SuperAdmin';
+            } elseif (in_array('Organizador', $roles)) {
+                $rolSeleccionado = 'Organizador';
+            } elseif (in_array('Asistente', $roles)) {
+                $rolSeleccionado = 'Asistente';
+            }
+
+            echo json_encode([
+                "status" => "success",
+                "mensaje" => "Inicio de sesión exitoso.",
+                "user" => [
+                    "dni" => $usuario->dni_usuario,
+                    "nombre" => $usuario->nombre_usuario,
+                    "apellido" => $usuario->apellido_usuario,
+                    "email" => $usuario->email,
+                    "telefono" => $usuario->telefono_usuario,
+                    "rol" => $rolSeleccionado,
+                    "roles" => $roles
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            echo json_encode([
+                "status" => "error",
+                "mensaje" => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Registra un nuevo usuario en la plataforma.
+     * Endpoint: registro.php (POST)
+     */
+    public function registrarUsuario(): void {
+        try {
+            $input = json_decode(file_get_contents("php://input"), true);
+
+            if (!$input || !isset($input['nombre']) || !isset($input['apellido']) || !isset($input['dni']) || !isset($input['fechaNac']) || !isset($input['email']) || !isset($input['password'])) {
+                throw new Exception("Datos de registro incompletos.");
+            }
+
+            $dni = (int)$input['dni'];
+            $nombre = trim($input['nombre']);
+            $apellido = trim($input['apellido']);
+            $fechaNac = $input['fechaNac'];
+            $email = trim($input['email']);
+            $telefono = isset($input['telefono']) && $input['telefono'] !== '' ? (int)$input['telefono'] : null;
+            $password = $input['password'];
+
+            if (strlen($password) < 8) {
+                throw new Exception("La contraseña debe tener al menos 8 caracteres.");
+            }
+
+            // Verificar si el DNI ya está registrado
+            if ($this->usuarioRepo->find($dni)) {
+                throw new Exception("El DNI ya se encuentra registrado en el sistema.");
+            }
+
+            // Verificar si el email ya está registrado
+            if ($this->usuarioRepo->findByEmail($email)) {
+                throw new Exception("El correo electrónico ya se encuentra registrado en el sistema.");
+            }
+
+            // Hashear contraseña
+            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+            $usuario = new Usuario(
+                $dni,
+                $nombre,
+                $apellido,
+                $fechaNac,
+                $email,
+                $telefono,
+                $passwordHash
+            );
+
+            // Validar email
+            $usuario->validarEmail();
+
+            if ($this->usuarioRepo->save($usuario)) {
+                echo json_encode([
+                    "status" => "success",
+                    "mensaje" => "Registro exitoso.",
+                    "user" => [
+                        "dni" => $usuario->dni_usuario,
+                        "nombre" => $usuario->nombre_usuario,
+                        "apellido" => $usuario->apellido_usuario,
+                        "email" => $usuario->email,
+                        "telefono" => $usuario->telefono_usuario,
+                        "rol" => "Capitán"
+                    ]
+                ]);
+            } else {
+                throw new Exception("Error al guardar el usuario en la base de datos.");
+            }
+
+        } catch (Exception $e) {
+            echo json_encode([
+                "status" => "error",
+                "mensaje" => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * Guarda un nuevo colaborador (Asistente / Organizador) y le asigna su rol.
      * Endpoint: guardar_colaborador.php (POST)
      */
@@ -42,7 +178,14 @@ class UsuarioController {
         try {
             $input = json_decode(file_get_contents("php://input"), true);
 
-            if (!$input || !isset($input['dni_usuario']) || !isset($input['nombre_usuario']) || !isset($input['email'])) {
+            $dni = $input['dni_usuario'] ?? $input['dni'] ?? null;
+            $nombre = $input['nombre_usuario'] ?? $input['nombre'] ?? '';
+            $apellido = $input['apellido_usuario'] ?? $input['apellido'] ?? '';
+            $fechaNac = $input['fecha_nac'] ?? $input['fechaNac'] ?? '2000-01-01';
+            $email = $input['email'] ?? '';
+            $telefono = $input['telefono_usuario'] ?? $input['telefono'] ?? null;
+
+            if (!$dni || !$nombre || !$email) {
                 throw new Exception("Datos del colaborador incompletos.");
             }
 
@@ -51,12 +194,12 @@ class UsuarioController {
 
             try {
                 $usuario = new Usuario(
-                    (int)$input['dni_usuario'],
-                    $input['nombre_usuario'],
-                    $input['apellido_usuario'] ?? '',
-                    $input['fecha_nac'] ?? '2000-01-01',
-                    $input['email'],
-                    isset($input['telefono_usuario']) ? (int)$input['telefono_usuario'] : null
+                    (int)$dni,
+                    $nombre,
+                    $apellido,
+                    $fechaNac,
+                    $email,
+                    $telefono !== null ? (int)$telefono : null
                 );
 
                 // Validar email del dominio
@@ -67,33 +210,26 @@ class UsuarioController {
                     throw new Exception("Error al insertar al usuario.");
                 }
 
-                // Asignar rol de Asistente (id_rol = 3) u Organizador (id_rol = 2)
+                // Obtener ID del rol (Asistente = 3, Organizador = 2)
                 $rolNombre = strtolower($input['rol'] ?? 'asistente');
-                $idRol = ($rolNombre === 'organizador') ? 2 : 3;
+                $idRol = ($rolNombre === 'organizador' || $rolNombre === '2') ? 2 : 3;
 
-                // Verificar si ya tiene el rol asignado
-                $stmtCheck = $db->prepare("SELECT 1 FROM Usuario_rol WHERE dni_usuario = :dni AND id_rol = :id_rol");
-                $stmtCheck->execute(['dni' => $usuario->dni_usuario, 'id_rol' => $idRol]);
-                if (!$stmtCheck->fetch()) {
-                    $stmtRol = $db->prepare("INSERT INTO Usuario_rol (dni_usuario, id_rol) VALUES (:dni, :id_rol)");
-                    $stmtRol->execute(['dni' => $usuario->dni_usuario, 'id_rol' => $idRol]);
-                }
+                // Si se especifica torneo, agregarlo como colaborador.
+                // Si no, podemos asociarlo a un torneo ficticio o por defecto si es requerido, o simplemente omitir.
+                // Generalmente se añade a List_colaboradores para un torneo.
+                $idTorneo = !empty($input['id_torneo']) ? (int)$input['id_torneo'] : 1; // Fallback a Torneo 1 si no se especifica
 
-                // Si se especifica torneo, agregarlo como colaborador
-                if (!empty($input['id_torneo'])) {
-                    $idTorneo = (int)$input['id_torneo'];
-                    $stmtCol = $db->prepare("
-                        INSERT INTO List_colaboradores (fecha_registro, dni_usuario, id_torneo, id_rol)
-                        VALUES (:fecha, :dni, :id_torneo, :id_rol)
-                        ON DUPLICATE KEY UPDATE fecha_registro = :fecha, id_rol = :id_rol
-                    ");
-                    $stmtCol->execute([
-                        'fecha' => date('Y-m-d'),
-                        'dni' => $usuario->dni_usuario,
-                        'id_torneo' => $idTorneo,
-                        'id_rol' => $idRol
-                    ]);
-                }
+                $stmtCol = $db->prepare("
+                    INSERT INTO List_colaboradores (fecha_registro, dni_usuario, id_torneo, id_rol)
+                    VALUES (:fecha, :dni, :id_torneo, :id_rol)
+                    ON DUPLICATE KEY UPDATE fecha_registro = :fecha, id_rol = :id_rol
+                ");
+                $stmtCol->execute([
+                    'fecha' => date('Y-m-d'),
+                    'dni' => $usuario->dni_usuario,
+                    'id_torneo' => $idTorneo,
+                    'id_rol' => $idRol
+                ]);
 
                 $db->commit();
                 echo json_encode([

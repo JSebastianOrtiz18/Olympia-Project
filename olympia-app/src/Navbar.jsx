@@ -28,6 +28,8 @@ const Navbar = () => {
         localStorage.removeItem('olympia_role');
         localStorage.removeItem('olympia_view_mode');
         localStorage.removeItem('olympia_user_email');
+        localStorage.removeItem('olympia_user_name');
+        localStorage.removeItem('olympia_user_dni');
         localStorage.removeItem('olympia_asistente_torneo');
         localStorage.removeItem('olympia_asistente_nombre');
         navigate('/');
@@ -38,11 +40,10 @@ const Navbar = () => {
     };
 
     const linkStyle = (path) => {
-        return `px-4 py-2 rounded-xl text-sm font-bold tracking-wide transition-all duration-200 flex items-center gap-2 ${
-            isLinkActive(path) 
-            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
-            : 'text-slate-300 hover:text-white hover:bg-slate-800'
-        }`;
+        return `px-4 py-2 rounded-xl text-sm font-bold tracking-wide transition-all duration-200 flex items-center gap-2 ${isLinkActive(path)
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`;
     };
 
     return (
@@ -71,7 +72,7 @@ const Navbar = () => {
                         {originalRole !== 'SuperAdmin' && (
                             <>
                                 <Link to="/admin" className={linkStyle('/admin')}>
-                                    <ShieldAlert className="h-4 w-4" /> Inicio Admin
+                                    <ShieldAlert className="h-4 w-4" /> Inicio
                                 </Link>
                                 <Link to="/admin/torneos" className={linkStyle('/admin/torneos')}>
                                     <Trophy className="h-4 w-4" /> Torneos

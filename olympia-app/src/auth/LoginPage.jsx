@@ -34,7 +34,7 @@ const LoginPage = () => {
         setError('');
     };
 
-    const handleLoginSubmit = (e) => {
+    const handleLoginSubmit = async (e) => {
         e.preventDefault();
         const { email, password } = loginData;
 
@@ -43,50 +43,47 @@ const LoginPage = () => {
             return;
         }
 
-        // Simulación de roles para prototipo
-        let role = 'Capitán';
-        if (email.toLowerCase() === 'admin@olympia.com') {
-            role = 'SuperAdmin';
-        } else if (email.toLowerCase() === 'organizador@olympia.com') {
-            role = 'Organizador';
-        } else if (email.toLowerCase() === 'capitan@olympia.com') {
-            role = 'Capitán';
-        }
+        try {
+            const resp = await fetch("http://localhost/olympia-backend/usuarios/login.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await resp.json();
 
-        // Credenciales quemadas para demo
-        if (password.length < 8) {
-            setError('La contraseña debe tener al menos 8 caracteres');
-            return;
-        }
+            if (data.status === 'success') {
+                const { nombre, apellido, email: userEmail, rol, dni } = data.user;
+                const fullName = `${nombre} ${apellido}`;
 
-        localStorage.setItem('olympia_token', 'true');
-        localStorage.setItem('olympia_role', role);
-        localStorage.setItem('olympia_user_email', email);
-        
-        if (email.toLowerCase() === 'admin@olympia.com') {
-            localStorage.setItem('olympia_user_name', 'Admin');
-        } else if (email.toLowerCase() === 'organizador@olympia.com') {
-            localStorage.setItem('olympia_user_name', 'Organizador');
-        } else if (email.toLowerCase() === 'capitan@olympia.com') {
-            localStorage.setItem('olympia_user_name', 'Carlos Tévez');
-        } else {
-            localStorage.setItem('olympia_user_name', email.split('@')[0]);
-        }
-        
-        // El SuperAdmin y el Organizador inician sesión directamente en modo Organizador (no participan como capitán)
-        localStorage.setItem('olympia_view_mode', (role === 'Organizador' || role === 'SuperAdmin') ? 'Organizador' : 'Capitán'); // HU-7.2
+                localStorage.setItem('olympia_token', 'true');
+                localStorage.setItem('olympia_role', rol);
+                localStorage.setItem('olympia_user_email', userEmail);
+                localStorage.setItem('olympia_user_name', fullName);
+                localStorage.setItem('olympia_user_dni', dni.toString());
 
-        if (role === 'SuperAdmin') {
-            // El SuperAdmin es redirigido exclusivamente al panel de control de usuarios/personal
-            navigate('/admin/gestion-usuarios');
-        } else if (role === 'Organizador') {
-            navigate('/admin');
-        } else {
-            navigate('/capitan');
+                // El SuperAdmin y el Organizador inician sesión directamente en modo Organizador (no participan como capitán)
+                localStorage.setItem('olympia_view_mode', (rol === 'Organizador' || rol === 'SuperAdmin') ? 'Organizador' : 'Capitán');
+
+                setSuccess('¡Inicio de sesión exitoso! Redirigiendo...');
+
+                setTimeout(() => {
+                    if (rol === 'SuperAdmin') {
+                        navigate('/admin/gestion-usuarios');
+                    } else if (rol === 'Organizador') {
+                        navigate('/admin');
+                    } else {
+                        navigate('/capitan');
+                    }
+                }, 1000);
+            } else {
+                setError(data.mensaje || 'Error al iniciar sesión.');
+            }
+        } catch (err) {
+            setError('Error al conectar con el servidor backend.');
         }
     };
 
-    const handleRegisterSubmit = (e) => {
+    const handleRegisterSubmit = async (e) => {
         e.preventDefault();
         const { nombre, apellido, dni, fechaNac, email, telefono, password, confirmPassword } = registerData;
 
@@ -106,35 +103,46 @@ const LoginPage = () => {
             return;
         }
 
-        // Simular que el correo ya está registrado
-        if (email.toLowerCase() === 'capitan@olympia.com' || email.toLowerCase() === 'organizador@olympia.com') {
-            setError('El correo electrónico ya se encuentra registrado en el sistema');
-            return;
+        try {
+            const resp = await fetch("http://localhost/olympia-backend/usuarios/registro.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    nombre,
+                    apellido,
+                    dni,
+                    fechaNac,
+                    email,
+                    telefono,
+                    password
+                })
+            });
+            const data = await resp.json();
+
+            if (data.status === 'success') {
+                const { nombre: resNombre, apellido: resApellido, email: resEmail, rol, dni: resDni } = data.user;
+                const fullName = `${resNombre} ${resApellido}`;
+
+                localStorage.setItem('olympia_token', 'true');
+                localStorage.setItem('olympia_role', rol);
+                localStorage.setItem('olympia_user_email', resEmail);
+                localStorage.setItem('olympia_user_name', fullName);
+                localStorage.setItem('olympia_user_dni', resDni.toString());
+                localStorage.setItem('olympia_view_mode', 'Capitán');
+
+                setSuccess('¡Cuenta creada con éxito! Redirigiendo...');
+                setTimeout(() => {
+                    navigate('/capitan');
+                }, 1500);
+            } else {
+                setError(data.mensaje || 'Error al registrar usuario.');
+            }
+        } catch (err) {
+            setError('Error al conectar con el servidor backend.');
         }
-
-        // Guardar usuario registrado de forma ficticia
-        localStorage.setItem('olympia_token', 'true');
-        localStorage.setItem('olympia_role', 'Capitán');
-        localStorage.setItem('olympia_user_email', email);
-        localStorage.setItem('olympia_user_name', `${nombre} ${apellido}`);
-        localStorage.setItem('olympia_view_mode', 'Capitán');
-
-        setSuccess('¡Cuenta creada con éxito! Redirigiendo...');
-        setTimeout(() => {
-            navigate('/capitan');
-        }, 1500);
     };
 
-    // Auto-completar datos de prueba para agilizar la revisión
-    const fillDemoUser = (role) => {
-        if (role === 'SuperAdmin') {
-            setLoginData({ email: 'admin@olympia.com', password: 'admin1234' });
-        } else if (role === 'Organizador') {
-            setLoginData({ email: 'organizador@olympia.com', password: 'organizador1234' });
-        } else if (role === 'Capitán') {
-            setLoginData({ email: 'capitan@olympia.com', password: 'capitan1234' });
-        }
-    };
+
 
     return (
         <div 
@@ -246,33 +254,7 @@ const LoginPage = () => {
                                 INICIAR SESIÓN
                             </button>
 
-                            {/* Cuentas Demo Rápidas */}
-                            <div className="pt-4 border-t border-slate-800">
-                                <p className="text-xs text-slate-500 font-semibold mb-2 uppercase text-center tracking-wider">Acceso de Prueba Rápido</p>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <button 
-                                        type="button" 
-                                        onClick={() => fillDemoUser('SuperAdmin')}
-                                        className="text-[10px] font-bold py-1.5 px-1 bg-slate-800/40 hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-300 transition-colors"
-                                    >
-                                        SuperAdmin
-                                    </button>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => fillDemoUser('Organizador')}
-                                        className="text-[10px] font-bold py-1.5 px-1 bg-slate-800/40 hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-300 transition-colors"
-                                    >
-                                        Organizador
-                                    </button>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => fillDemoUser('Capitán')}
-                                        className="text-[10px] font-bold py-1.5 px-1 bg-slate-800/40 hover:bg-slate-800 border border-slate-800 rounded-lg text-slate-300 transition-colors"
-                                    >
-                                        Capitán
-                                    </button>
-                                </div>
-                            </div>
+
                         </form>
                     ) : (
                         /* FORMULARIO REGISTRO (HU-2.1) */

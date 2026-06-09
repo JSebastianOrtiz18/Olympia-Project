@@ -2,23 +2,23 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import Navbar from './Navbar';
-import DashboardAdmin from './admin_dashboard';
-import FormTorneo from './formTorneo';
-import FormEquipo from './formEquipo';
-import LoginPage from './LoginPage';
-import ListaTorneos from './ListaTorneos';
-import GestorEquipos from './GestorEquipos';
-import DashboardUsuarios from './DashboardUsuarios';
-import ProtectedRoute from './ProtectedRoute';
+import DashboardAdmin from './admin/admin_dashboard';
+import FormTorneo from './torneos/formTorneo';
+import FormEquipo from './equipos/formEquipo';
+import LoginPage from './auth/LoginPage';
+import ListaTorneos from './torneos/ListaTorneos';
+import GestorEquipos from './equipos/GestorEquipos';
+import DashboardUsuarios from './usuarios/DashboardUsuarios';
+import ProtectedRoute from './auth/ProtectedRoute';
 
 // Nuevos componentes a importar
-import AccesoPin from './AccesoPin';
-import CargaResultadosAsistente from './CargaResultadosAsistente';
-import DashboardCapitan from './DashboardCapitan';
-import GestorPlantilla from './GestorPlantilla';
-import ExploradorTorneos from './ExploradorTorneos';
-import GestionSolicitudes from './GestionSolicitudes';
-import HistorialResultados from './HistorialResultados';
+import AccesoPin from './auth/AccesoPin';
+import CargaResultadosAsistente from './torneos/CargaResultadosAsistente';
+import DashboardCapitan from './usuarios/DashboardCapitan';
+import GestorPlantilla from './equipos/GestorPlantilla';
+import ExploradorTorneos from './torneos/ExploradorTorneos';
+import GestionSolicitudes from './solicitudes/GestionSolicitudes';
+import HistorialResultados from './torneos/HistorialResultados';
 
 import './index.css';
 

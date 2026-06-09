@@ -48,6 +48,29 @@ class TorneoController {
 
             // Guardar en base de datos usando el repositorio
             if ($this->torneoRepo->save($torneo)) {
+                $creadorDni = isset($input['creador_dni']) ? (int)$input['creador_dni'] : null;
+                if ($creadorDni) {
+                    $db = Database::getConnection();
+                    $userRepo = new \Olympia\Repositories\UsuarioRepository($db);
+                    $roles = $userRepo->getUserRoles($creadorDni);
+                    $rolId = 2; // Organizador por defecto
+                    if (in_array('SuperAdmin', $roles)) {
+                        $rolId = 1; // Administrador/SuperAdmin
+                    } elseif (in_array('Asistente', $roles)) {
+                        $rolId = 3; // Asistente
+                    }
+
+                    $stmtColab = $db->prepare("
+                        INSERT IGNORE INTO List_colaboradores (fecha_registro, dni_usuario, id_torneo, id_rol)
+                        VALUES (CURDATE(), :dni, :id_torneo, :rol_id)
+                    ");
+                    $stmtColab->execute([
+                        'dni' => $creadorDni,
+                        'id_torneo' => $torneo->id_torneo,
+                        'rol_id' => $rolId
+                    ]);
+                }
+
                 echo json_encode([
                     "status" => "success",
                     "mensaje" => "Torneo creado correctamente con el ID: " . $torneo->id_torneo

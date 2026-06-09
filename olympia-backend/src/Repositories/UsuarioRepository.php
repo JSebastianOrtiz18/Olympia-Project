@@ -50,16 +50,97 @@ class UsuarioRepository {
                    U.email, 
                    U.fecha_nac,
                    U.telefono_usuario,
-                   COALESCE(GROUP_CONCAT(R.nombre_rol SEPARATOR ', '), 'Sin rol asignado') AS roles_asignados 
+                   COALESCE(
+                       (
+                           SELECT GROUP_CONCAT(rol_nombre SEPARATOR ', ')
+                           FROM (
+                               SELECT DISTINCT R.nombre_rol AS rol_nombre
+                               FROM List_colaboradores LC
+                               INNER JOIN Rol R ON LC.id_rol = R.id_rol
+                               WHERE LC.dni_usuario = U.dni_usuario
+                               UNION
+                               SELECT DISTINCT 'Capitán' AS rol_nombre
+                               FROM Plantilla_equipo PE
+                               WHERE PE.dni_usuario = U.dni_usuario AND PE.posicion_equipo = 'Capitán'
+                           ) AS temp_roles
+                       ),
+                       'Sin rol asignado'
+                   ) AS roles_asignados 
             FROM Usuario U 
-            LEFT JOIN Usuario_rol UR ON U.dni_usuario = UR.dni_usuario 
-            LEFT JOIN Rol R ON UR.id_rol = R.id_rol 
-            GROUP BY U.dni_usuario 
             ORDER BY U.nombre_usuario ASC
         ";
 
         $stmt = $this->db->query($sql);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Busca un usuario por email.
+     */
+    public function findByEmail(string $email): ?Usuario {
+        $stmt = $this->db->prepare("SELECT * FROM Usuario WHERE LOWER(email) = LOWER(:email)");
+        $stmt->execute(['email' => $email]);
+        $row = $stmt->fetch();
+
+        if (!$row) {
+            return null;
+        }
+
+        return new Usuario(
+            (int)$row['dni_usuario'],
+            $row['nombre_usuario'],
+            $row['apellido_usuario'],
+            $row['fecha_nac'],
+            $row['email'],
+            isset($row['telefono_usuario']) ? (int)$row['telefono_usuario'] : null,
+            $row['password_hash']
+        );
+    }
+
+    /**
+     * Obtiene todos los roles asignados a un usuario.
+     */
+    public function getUserRoles(int $dni_usuario): array {
+        // Buscar roles de colaborador
+        $stmt = $this->db->prepare("
+            SELECT DISTINCT R.nombre_rol 
+            FROM List_colaboradores LC
+            INNER JOIN Rol R ON LC.id_rol = R.id_rol
+            WHERE LC.dni_usuario = :dni
+        ");
+        $stmt->execute(['dni' => $dni_usuario]);
+        $colabRoles = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        // Buscar si es Capitán en Plantilla_equipo
+        $stmtCap = $this->db->prepare("
+            SELECT 1 
+            FROM Plantilla_equipo 
+            WHERE dni_usuario = :dni AND posicion_equipo = 'Capitán'
+            LIMIT 1
+        ");
+        $stmtCap->execute(['dni' => $dni_usuario]);
+        $isCap = $stmtCap->fetch();
+
+        $roles = [];
+        foreach ($colabRoles as $role) {
+            if ($role === 'Administrador') {
+                $roles[] = 'SuperAdmin';
+            } elseif ($role === 'Organizador') {
+                $roles[] = 'Organizador';
+            } elseif ($role === 'Asistente') {
+                $roles[] = 'Asistente';
+            }
+        }
+
+        if ($isCap) {
+            $roles[] = 'Capitán';
+        }
+
+        if (empty($roles)) {
+            $roles[] = 'Capitán'; // Rol por defecto si no tiene otro
+        }
+
+        return array_unique($roles);
     }
 
     /**
